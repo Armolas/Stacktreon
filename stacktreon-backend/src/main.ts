@@ -7,7 +7,7 @@ async function bootstrap() {
 
   // Enable CORS
   app.enableCors({
-    origin: process.env.FRONTEND_URL || 'https://stacktreon.vercel.app/',
+    origin: process.env.FRONTEND_URL || 'https://stacktreon.vercel.app',
     credentials: true,
   });
 
