@@ -66,7 +66,7 @@ const Index = () => {
           <div className="lg:w-1/3">
             <p className="text-[11px] uppercase tracking-[0.6em] text-muted-foreground">Why Stacktreon</p>
             <h2 className="mt-4 text-2xl font-semibold leading-tight">
-              Payments, memberships, and vault-grade custody - wrapped in calm UI.
+              Payments, memberships, and vault-grade custody.
             </h2>
             <p className="mt-4 text-sm text-muted-foreground">
               Every surface favors whitespace, restrained color, and intentional feedback. Dark mode mirrors light mode with
