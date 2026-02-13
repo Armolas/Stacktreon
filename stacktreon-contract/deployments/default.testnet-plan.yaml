@@ -1,0 +1,18 @@
+---
+id: 0
+name: Testnet deployment
+network: testnet
+stacks-node: "https://api.testnet.hiro.so"
+bitcoin-node: "http://blockstack:blockstacksystem@bitcoind.testnet.stacks.co:18332"
+plan:
+  batches:
+    - id: 0
+      transactions:
+        - contract-publish:
+            contract-name: stacktreonv1
+            expected-sender: ST1A514GGX294KQC7ZKD7Q886DDWVBA6GQ5MRB07E
+            cost: 33770
+            path: contracts/stacktreonv1.clar
+            anchor-block-only: true
+            clarity-version: 4
+      epoch: "3.3"
