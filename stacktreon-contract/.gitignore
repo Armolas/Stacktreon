@@ -11,3 +11,9 @@ coverage
 *.info
 costs-reports.json
 node_modules
+
+# macOS junk
+.DS_Store
+
+# generated on each test run
+deployments/default.simnet-plan.yaml
