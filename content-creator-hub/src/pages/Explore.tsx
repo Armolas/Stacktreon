@@ -2,8 +2,10 @@ import Layout from "@/components/Layout";
 import { Input } from "@/components/ui/input";
 import { Link } from "react-router-dom";
 import { Search } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { CreatorResponse, getAllCreators } from "@/lib/api";
+import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
+import { CreatorResponse } from "@/lib/types";
 
 const DEFAULT_CATEGORIES = [
   "Digital Art",
@@ -46,26 +48,9 @@ const formatSubscriptionFee = (fee: CreatorResponse["subscriptionFee"]) => {
 const Explore = () => {
   const [category, setCategory] = useState("All");
   const [search, setSearch] = useState("");
-  const [creators, setCreators] = useState<CreatorResponse[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const loadCreators = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const data = await getAllCreators();
-      setCreators(data);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load creators");
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadCreators();
-  }, [loadCreators]);
+  const allCreators = useQuery(api.creators.getAll);
+  const isLoading = allCreators === undefined;
+  const creators = useMemo(() => allCreators ?? [], [allCreators]);
 
   const categories = useMemo(() => {
     const derived = Array.from(
@@ -159,18 +144,6 @@ const Explore = () => {
           </div>
         </header>
 
-        {error && (
-          <div className="flex items-center justify-between rounded-2xl border border-destructive/50 bg-destructive/10 px-6 py-4 text-xs uppercase tracking-[0.4em] text-destructive">
-            <span>{error}</span>
-            <button
-              onClick={loadCreators}
-              className="rounded-full border border-destructive px-4 py-2 text-[10px] tracking-[0.5em]"
-            >
-              Retry
-            </button>
-          </div>
-        )}
-
         {isLoading ? (
           <p className="py-24 text-center text-sm text-muted-foreground">Loading creators…</p>
         ) : (
@@ -206,7 +179,7 @@ const Explore = () => {
                 </Link>
               ))}
             </div>
-            {filtered.length === 0 && !error && (
+            {filtered.length === 0 && (
               <p className="py-24 text-center text-sm text-muted-foreground">No creators match that search.</p>
             )}
           </>

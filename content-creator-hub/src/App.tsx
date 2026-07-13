@@ -1,7 +1,7 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ConvexProvider, ConvexReactClient } from "convex/react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { WalletProvider } from "@/contexts/WalletContext";
 import { ThemeProvider } from "@/components/ThemeProvider";
@@ -15,11 +15,11 @@ import UploadContent from "./pages/UploadContent";
 import FanDashboard from "./pages/FanDashboard";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string);
 
 const App = () => (
   <ThemeProvider>
-    <QueryClientProvider client={queryClient}>
+    <ConvexProvider client={convex}>
       <WalletProvider>
         <TooltipProvider>
           <Toaster />
@@ -39,7 +39,7 @@ const App = () => (
           </BrowserRouter>
         </TooltipProvider>
       </WalletProvider>
-    </QueryClientProvider>
+    </ConvexProvider>
   </ThemeProvider>
 );
 

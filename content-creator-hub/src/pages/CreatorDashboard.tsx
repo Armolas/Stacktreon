@@ -5,18 +5,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useWallet } from "@/contexts/WalletContext";
-import {
-  ContentResponse,
-  CreatorResponse,
-  SubscriptionResponse,
-  TransactionResponse,
-  getContentByCreator,
-  getCreatorByWallet,
-  getCreatorSubscribers,
-  getTransactionsByCreator,
-  NotFoundError,
-} from "@/lib/api";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
+import { useEffect, useMemo } from "react";
 import { formatDistanceToNow } from "date-fns";
 
 const formatDate = (dateString?: string) => {
@@ -31,69 +22,46 @@ const formatDate = (dateString?: string) => {
 const CreatorDashboard = () => {
   const navigate = useNavigate();
   const { stxAddress, isAuthenticated } = useWallet();
-  const [isLoading, setIsLoading] = useState(true);
-  const [isHydrating, setIsHydrating] = useState(false);
-  const [creator, setCreator] = useState<CreatorResponse | null>(null);
-  const [content, setContent] = useState<ContentResponse[]>([]);
-  const [subscribers, setSubscribers] = useState<SubscriptionResponse[]>([]);
-  const [transactions, setTransactions] = useState<TransactionResponse[]>([]);
-  const [error, setError] = useState<string | null>(null);
 
-  const hydrateDashboard = useCallback(
-    async (creatorId: string, walletAddress: string) => {
-      setIsHydrating(true);
-      try {
-        const [contentResponse, subscriberResponse, transactionResponse] = await Promise.all([
-          getContentByCreator(creatorId, stxAddress || undefined),
-          getCreatorSubscribers(creatorId),
-          getTransactionsByCreator(walletAddress),
-        ]);
-
-        setContent(contentResponse);
-        setSubscribers(subscriberResponse);
-        setTransactions(transactionResponse);
-        setError(null);
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "Failed to load creator data.";
-        setError(message);
-      } finally {
-        setIsHydrating(false);
-      }
-    },
-    [stxAddress]
+  const creator = useQuery(
+    api.creators.getByWallet,
+    isAuthenticated && stxAddress ? { walletAddress: stxAddress } : "skip",
+  );
+  const contentQuery = useQuery(
+    api.content.listByCreator,
+    creator ? { creatorId: creator.id, userWallet: stxAddress ?? undefined } : "skip",
+  );
+  const subscribersQuery = useQuery(
+    api.subscriptions.listByCreator,
+    creator ? { creatorId: creator.id } : "skip",
+  );
+  const transactionsQuery = useQuery(
+    api.transactions.listByCreatorWallet,
+    creator ? { creatorWallet: creator.walletAddress } : "skip",
   );
 
+  const content = contentQuery ?? [];
+  const subscribers = subscribersQuery ?? [];
+  const transactions = transactionsQuery ?? [];
+
+  const isLoading = Boolean(isAuthenticated && stxAddress) && creator === undefined;
+  const isHydrating =
+    Boolean(creator) &&
+    (contentQuery === undefined || subscribersQuery === undefined || transactionsQuery === undefined);
+
+  // No creator profile exists for this wallet: send them to registration
   useEffect(() => {
-    const checkCreator = async () => {
-      if (!isAuthenticated || !stxAddress) {
-        setIsLoading(false);
-        return;
-      }
-
-      try {
-        const creatorProfile = await getCreatorByWallet(stxAddress);
-        setCreator(creatorProfile);
-        await hydrateDashboard(creatorProfile.id, creatorProfile.walletAddress);
-      } catch (error) {
-        if (error instanceof NotFoundError) {
-          navigate('/dashboard/creator/register');
-        } else {
-          setError(error instanceof Error ? error.message : 'Failed to load your creator profile.');
-        }
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    checkCreator();
-  }, [stxAddress, isAuthenticated, navigate, hydrateDashboard]);
+    if (isAuthenticated && stxAddress && creator === null) {
+      navigate("/dashboard/creator/register");
+    }
+  }, [isAuthenticated, stxAddress, creator, navigate]);
 
   const stats = useMemo(() => {
     const confirmedTx = transactions.filter((tx) => tx.status === "confirmed");
-    const totalEarned = confirmedTx.reduce((sum, tx) => sum + parseFloat(String(tx.amount)), 0);
+    const totalEarned = confirmedTx.reduce((sum, tx) => sum + tx.amount, 0);
     const ppvEarned = confirmedTx
       .filter((tx) => tx.type === "pay-per-view")
-      .reduce((sum, tx) => sum + parseFloat(String(tx.amount)), 0);
+      .reduce((sum, tx) => sum + tx.amount, 0);
     const totalViews = content.reduce((sum, item) => sum + (item.viewCount || 0), 0);
     const activeSubscribers = subscribers.filter((sub) => {
       if (sub.status !== "active") return false;
@@ -143,18 +111,6 @@ const CreatorDashboard = () => {
   }
 
   if (!creator) {
-    if (error) {
-      return (
-        <Layout>
-          <div className="mx-auto flex w-full max-w-4xl flex-col items-center gap-4 rounded-3xl border border-border/70 bg-card/80 px-8 py-20 text-center">
-            <p className="text-sm text-destructive">{error}</p>
-            <p className="text-xs text-muted-foreground">
-              The server may be waking up. Please try again in a moment.
-            </p>
-          </div>
-        </Layout>
-      );
-    }
     return null; // Redirecting to registration
   }
 
@@ -173,12 +129,6 @@ const CreatorDashboard = () => {
             </Link>
           </Button>
         </div>
-
-        {error && (
-          <div className="rounded-2xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-xs uppercase tracking-[0.4em] text-destructive">
-            {error}
-          </div>
-        )}
 
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           {stats.map((s) => (

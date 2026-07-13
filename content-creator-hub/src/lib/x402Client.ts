@@ -5,7 +5,15 @@ import {
 } from '@stacks/transactions';
 import { decodePaymentResponse } from 'x402-stacks';
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://stacktreon.onrender.com';
+// x402 requests go to the Convex deployment's HTTP action domain.
+// Cloud deployments expose it at <deployment>.convex.site; local dev sets
+// VITE_CONVEX_SITE_URL explicitly.
+const API_URL =
+  (import.meta.env.VITE_CONVEX_SITE_URL as string | undefined) ||
+  ((import.meta.env.VITE_CONVEX_URL as string | undefined) || '').replace(
+    '.convex.cloud',
+    '.convex.site',
+  );
 const NETWORK = (import.meta.env.VITE_NETWORK as 'mainnet' | 'testnet') || 'testnet';
 
 interface PaymentRequirement {

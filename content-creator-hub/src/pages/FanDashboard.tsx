@@ -5,15 +5,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Lock, Eye } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useWallet } from "@/contexts/WalletContext";
-import {
-  ContentResponse,
-  SubscriptionResponse,
-  TransactionResponse,
-  getContentByCreator,
-  getTransactionsByWallet,
-  getUserSubscriptions,
-} from "@/lib/api";
-import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
+import { useMemo } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "@/hooks/use-toast";
 
@@ -37,84 +31,25 @@ const formatStxValue = (value: number | string | null | undefined) => {
 
 const FanDashboard = () => {
   const { stxAddress, isAuthenticated, connectWallet } = useWallet();
-  const [isLoading, setIsLoading] = useState(true);
-  const [feedLoading, setFeedLoading] = useState(false);
-  const [subscriptions, setSubscriptions] = useState<SubscriptionResponse[]>([]);
-  const [transactions, setTransactions] = useState<TransactionResponse[]>([]);
-  const [feed, setFeed] = useState<ContentResponse[]>([]);
-  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!isAuthenticated || !stxAddress) {
-        setIsLoading(false);
-        return;
-      }
+  const subscriptionsQuery = useQuery(
+    api.subscriptions.listByUser,
+    stxAddress ? { walletAddress: stxAddress } : "skip",
+  );
+  const transactionsQuery = useQuery(
+    api.transactions.listByPayerWallet,
+    stxAddress ? { payerWallet: stxAddress } : "skip",
+  );
+  const feedQuery = useQuery(api.content.feed, stxAddress ? { userWallet: stxAddress } : "skip");
 
-      setIsLoading(true);
-      try {
-        const [subsResponse, txResponse] = await Promise.all([
-          getUserSubscriptions(stxAddress),
-          getTransactionsByWallet(stxAddress),
-        ]);
-        setSubscriptions(subsResponse);
-        setTransactions(txResponse);
-        setError(null);
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "Failed to load dashboard data.";
-        setError(message);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const subscriptions = subscriptionsQuery ?? [];
+  const transactions = transactionsQuery ?? [];
+  const feed = feedQuery ?? [];
 
-    fetchData();
-  }, [isAuthenticated, stxAddress]);
-
-  useEffect(() => {
-    if (!stxAddress || subscriptions.length === 0) {
-      setFeed([]);
-      setFeedLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-    const fetchFeed = async () => {
-      setFeedLoading(true);
-      try {
-        const contentArrays = await Promise.all(
-          subscriptions.map((sub) => getContentByCreator(sub.creator.id, stxAddress))
-        );
-        if (cancelled) return;
-
-        const merged = new Map<string, ContentResponse>();
-        contentArrays.flat().forEach((item) => {
-          merged.set(item.id, item);
-        });
-
-        const combined = Array.from(merged.values()).sort(
-          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        );
-
-        setFeed(combined.slice(0, 15));
-      } catch (err) {
-        if (!cancelled) {
-          const message = err instanceof Error ? err.message : "Failed to load feed.";
-          setError((prev) => prev ?? message);
-        }
-      } finally {
-        if (!cancelled) {
-          setFeedLoading(false);
-        }
-      }
-    };
-
-    fetchFeed();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [subscriptions, stxAddress]);
+  const isLoading =
+    Boolean(isAuthenticated && stxAddress) &&
+    (subscriptionsQuery === undefined || transactionsQuery === undefined);
+  const feedLoading = Boolean(stxAddress) && feedQuery === undefined;
 
   const history = useMemo(() => {
     return transactions
@@ -170,16 +105,10 @@ const FanDashboard = () => {
               <p className="text-sm text-muted-foreground">Track pay-per-view unlocks and subscription drops.</p>
             </div>
             <div className="text-xs uppercase tracking-[0.4em] text-muted-foreground">
-              {subscriptions.length} active subscriptions
+              {subscriptions.filter((sub) => sub.status === "active").length} active subscriptions
             </div>
           </div>
         </div>
-
-        {error && (
-          <div className="rounded-2xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-xs uppercase tracking-[0.4em] text-destructive">
-            {error}
-          </div>
-        )}
 
         <Tabs defaultValue="feed" className="rounded-2xl border border-border/60 bg-card/80 p-6 shadow-lg">
           <TabsList className="w-full justify-start gap-2 bg-transparent">

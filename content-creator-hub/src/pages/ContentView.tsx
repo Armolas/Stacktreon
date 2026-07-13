@@ -3,57 +3,31 @@ import { Button } from "@/components/ui/button";
 import { Lock, Zap, ArrowLeft, Calendar } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { useWallet } from "@/contexts/WalletContext";
-import { getContentById } from "@/lib/api";
+import { useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
+import { ContentResponse, errorMessage } from "@/lib/types";
 import { fetchPaidContent } from "@/lib/x402Client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-
-interface Content {
-  id: string;
-  title: string;
-  description: string;
-  contentType: string;
-  price: number;
-  fileUrl: string | null;
-  locked?: boolean;
-  viewCount: number;
-  createdAt: string;
-  creator: {
-    id: string;
-    displayName: string;
-    username: string;
-    subscriptionFee: number;
-  };
-}
 
 const ContentView = () => {
   const { id } = useParams();
   const { stxAddress, isAuthenticated } = useWallet();
   const { toast } = useToast();
-  const [content, setContent] = useState<Content | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [unlocked, setUnlocked] = useState<ContentResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPaying, setIsPaying] = useState(false);
 
-  useEffect(() => {
-    const fetchContent = async () => {
-      if (!id) return;
+  const queryContent = useQuery(
+    api.content.getById,
+    id ? { id, userWallet: stxAddress ?? undefined } : "skip",
+  );
 
-      try {
-        const data = await getContentById(id, stxAddress || undefined);
-        setContent(data);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load content');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchContent();
-  }, [id, stxAddress]);
+  // A paid unlock overrides the (still locked) reactive query result
+  const content = unlocked ?? queryContent;
+  const isLoading = id !== undefined && content === undefined;
 
   const isLocked = content?.locked || (content?.price && content.price > 0 && !content.fileUrl);
-
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -76,7 +50,7 @@ const ContentView = () => {
     setError(null);
 
     try {
-      const paidContent = await fetchPaidContent<{ data: Content }>(
+      const paidContent = await fetchPaidContent<{ data: ContentResponse }>(
         id,
         stxAddress,
         (amount) => {
@@ -94,19 +68,18 @@ const ContentView = () => {
         }
       );
 
-      // Update content with unlocked data
-      setContent(paidContent.data);
+      setUnlocked(paidContent.data);
 
       toast({
         title: "Success!",
         description: "Content unlocked. Enjoy!",
       });
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Payment failed';
-      setError(errorMessage);
+      const message = errorMessage(err, 'Payment failed');
+      setError(message);
       toast({
         title: "Payment Failed",
-        description: errorMessage,
+        description: message,
         variant: "destructive",
       });
     } finally {
@@ -181,11 +154,21 @@ const ContentView = () => {
     );
   }
 
-  if (error || !content) {
+  if (error && !content) {
     return (
       <Layout>
         <div className="container mx-auto px-4 py-12 max-w-2xl">
-          <p className="text-center text-destructive">{error || 'Content not found'}</p>
+          <p className="text-center text-destructive">{error}</p>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (!content) {
+    return (
+      <Layout>
+        <div className="container mx-auto px-4 py-12 max-w-2xl">
+          <p className="text-center text-destructive">Content not found</p>
         </div>
       </Layout>
     );

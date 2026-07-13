@@ -8,7 +8,9 @@ import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useWallet } from "@/contexts/WalletContext";
-import { registerCreator } from "@/lib/api";
+import { useMutation } from "convex/react";
+import { api } from "../../convex/_generated/api";
+import { errorMessage } from "@/lib/types";
 import { useSubscriptionContract } from "@/hooks/useSubscriptionContract";
 
 const CATEGORIES = [
@@ -35,6 +37,7 @@ const RegisterCreator = () => {
   const { stxAddress, isAuthenticated } = useWallet();
   const { toast } = useToast();
   const { registerCreator: registerOnContract } = useSubscriptionContract();
+  const registerCreator = useMutation(api.creators.register);
   const [form, setForm] = useState({
     username: "",
     displayName: "",
@@ -106,7 +109,7 @@ const RegisterCreator = () => {
         description: "Saving your creator profile...",
       });
 
-      const creator = await registerCreator(form);
+      await registerCreator(form);
 
       toast({
         title: "Success!",
@@ -116,11 +119,11 @@ const RegisterCreator = () => {
       // Redirect to dashboard after successful registration
       navigate("/dashboard/creator");
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to register creator";
-      setError(errorMessage);
+      const message = errorMessage(err, "Failed to register creator");
+      setError(message);
       toast({
         title: "Registration Failed",
-        description: errorMessage,
+        description: message,
         variant: "destructive",
       });
     } finally {

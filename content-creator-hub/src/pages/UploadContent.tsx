@@ -2,11 +2,13 @@ import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Upload, X } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
-import { uploadContent, getCreatorByWallet, NotFoundError } from "@/lib/api";
+import { useMutation, useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
+import { errorMessage } from "@/lib/types";
 import { useWallet } from "@/contexts/WalletContext";
 
 const UploadContent = () => {
@@ -20,6 +22,20 @@ const UploadContent = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const creator = useQuery(
+    api.creators.getByWallet,
+    isAuthenticated && stxAddress ? { walletAddress: stxAddress } : "skip",
+  );
+  const generateUploadUrl = useMutation(api.content.generateUploadUrl);
+  const createContent = useMutation(api.content.create);
+
+  // No creator profile for this wallet: send them to registration
+  useEffect(() => {
+    if (isAuthenticated && stxAddress && creator === null) {
+      navigate("/dashboard/creator/register");
+    }
+  }, [isAuthenticated, stxAddress, creator, navigate]);
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0];
     if (selected) setFile(selected);
@@ -31,30 +47,38 @@ const UploadContent = () => {
       setError("Please connect your wallet and select a file");
       return;
     }
+    if (!creator) {
+      setError("No creator profile found for this wallet");
+      return;
+    }
 
     setIsUploading(true);
     setError(null);
 
     try {
-      // Get creator ID from wallet address
-      const creator = await getCreatorByWallet(stxAddress);
+      const uploadUrl = await generateUploadUrl();
+      const uploadResponse = await fetch(uploadUrl, {
+        method: "POST",
+        headers: { "Content-Type": file.type || "application/octet-stream" },
+        body: file,
+      });
+      if (!uploadResponse.ok) {
+        throw new Error("File upload failed. Please try again.");
+      }
+      const { storageId } = await uploadResponse.json();
 
-      await uploadContent(
-        creator.id,
-        file,
+      await createContent({
+        creatorId: creator.id,
+        storageId,
         title,
         description,
-        parseFloat(price) || 0
-      );
+        price: parseFloat(price) || 0,
+        mimeType: file.type || "",
+      });
 
       navigate("/dashboard/creator");
     } catch (err) {
-      if (err instanceof NotFoundError) {
-        navigate("/dashboard/creator/register");
-        return;
-      }
-
-      setError(err instanceof Error ? err.message : "Failed to upload content");
+      setError(errorMessage(err, "Failed to upload content"));
     } finally {
       setIsUploading(false);
     }
@@ -166,7 +190,7 @@ const UploadContent = () => {
             )}
           </div>
 
-          <Button type="submit" className="w-full" disabled={!file || isUploading}>
+          <Button type="submit" className="w-full" disabled={!file || isUploading || !creator}>
             {isUploading ? "Uploading..." : "Upload Content"}
           </Button>
         </form>

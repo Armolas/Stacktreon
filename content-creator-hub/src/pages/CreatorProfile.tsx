@@ -4,17 +4,10 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Link, useParams } from "react-router-dom";
 import { Lock, Zap } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  ContentResponse,
-  CreatorResponse,
-  SubscriptionStatusResponse,
-  checkSubscriptionStatus,
-  createTransaction,
-  getContentByCreator,
-  getCreatorByUsername,
-  updateTransactionStatus,
-} from "@/lib/api";
+import { useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
+import { CreatorResponse, errorMessage } from "@/lib/types";
 import { useWallet } from "@/contexts/WalletContext";
 import { useToast } from "@/hooks/use-toast";
 import { useSubscriptionContract } from "@/hooks/useSubscriptionContract";
@@ -45,89 +38,43 @@ const CreatorProfile = () => {
   const { stxAddress, isAuthenticated, connectWallet } = useWallet();
   const { subscribe: subscribeOnContract } = useSubscriptionContract();
 
-  const [creator, setCreator] = useState<CreatorResponse | null>(null);
-  const [content, setContent] = useState<ContentResponse[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [contentLoading, setContentLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatusResponse | null>(null);
-  const [isSubscribing, setIsSubscribing] = useState(false);
-
-  const loadCreator = useCallback(async () => {
-    if (!handle) {
-      setError("Creator handle not provided.");
-      setIsLoading(false);
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const creatorResponse = await getCreatorByUsername(handle);
-      setCreator(creatorResponse);
-      setError(null);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to load creator profile.";
-      setError(message);
-      setCreator(null);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [handle]);
-
-  useEffect(() => {
-    loadCreator();
-  }, [loadCreator]);
-
-  const loadContent = useCallback(
-    async (creatorId: string, wallet?: string) => {
-      setContentLoading(true);
-      try {
-        const creatorContent = await getContentByCreator(creatorId, wallet);
-        setContent(creatorContent);
-      } catch {
-        setContent([]);
-      } finally {
-        setContentLoading(false);
-      }
-    },
-    []
+  const creator = useQuery(
+    api.creators.getByUsername,
+    handle ? { username: handle } : "skip",
   );
+  const content = useQuery(
+    api.content.listByCreator,
+    creator ? { creatorId: creator.id, userWallet: stxAddress ?? undefined } : "skip",
+  );
+  const subscriptionStatus = useQuery(
+    api.subscriptions.status,
+    creator && stxAddress ? { creatorId: creator.id, userWallet: stxAddress } : "skip",
+  );
+  const submitSubscription = useMutation(api.transactions.submitSubscription);
 
-  useEffect(() => {
-    if (!creator?.id) {
-      setContent([]);
-      return;
-    }
-    loadContent(creator.id, stxAddress || undefined);
-  }, [creator?.id, stxAddress, loadContent]);
+  const [isSubscribing, setIsSubscribing] = useState(false);
+  const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
 
-  const refreshSubscriptionStatus = useCallback(async () => {
-    if (!creator?.id || !stxAddress) {
-      setSubscriptionStatus(null);
-      return;
-    }
-
-    try {
-      const status = await checkSubscriptionStatus(creator.id, stxAddress);
-      setSubscriptionStatus(status);
-    } catch {
-      setSubscriptionStatus(null);
-    }
-  }, [creator?.id, stxAddress]);
-
-  useEffect(() => {
-    refreshSubscriptionStatus();
-  }, [refreshSubscriptionStatus]);
-
-  const isSubscribed = subscriptionStatus?.subscribed;
+  const isLoading = Boolean(handle) && creator === undefined;
+  const contentLoading = Boolean(creator) && content === undefined;
+  const isSubscribed = subscriptionStatus?.subscribed === true;
   const isOwner = creator?.walletAddress === stxAddress;
 
-  const handleSubscribe = useCallback(async () => {
+  // The status query flips reactively once on-chain verification lands
+  useEffect(() => {
+    if (isSubscribed && awaitingConfirmation) {
+      setAwaitingConfirmation(false);
+      toast({
+        title: "Subscription confirmed",
+        description: "Payment verified on-chain. Enjoy the premium content!",
+      });
+    }
+  }, [isSubscribed, awaitingConfirmation, toast]);
+
+  const handleSubscribe = async () => {
     if (!creator || !stxAddress) return;
 
     setIsSubscribing(true);
-    setError(null);
-
     try {
       toast({
         title: "Confirm in wallet",
@@ -136,32 +83,22 @@ const CreatorProfile = () => {
 
       const { txId } = await subscribeOnContract(creator.walletAddress);
 
-      toast({
-        title: "Transaction submitted",
-        description: `Tx ${txId.slice(0, 8)}… sent. Recording subscription…`,
-      });
-
-      const transaction = await createTransaction({
+      await submitSubscription({
         payerWallet: stxAddress,
         creatorWallet: creator.walletAddress,
-        type: "subscription",
-        amountCents: normalizeSubscriptionFee(creator.subscriptionFee),
+        amount: normalizeSubscriptionFee(creator.subscriptionFee),
         txHash: txId,
-        status: "pending",
       });
 
-      await updateTransactionStatus(transaction.id, "confirmed", txId);
-
+      setAwaitingConfirmation(true);
       toast({
-        title: "Subscription confirmed",
-        description: "Welcome aboard! Enjoy premium content.",
+        title: "Transaction submitted",
+        description:
+          "Access unlocks automatically once the payment is verified on-chain (usually 1-2 minutes).",
+        duration: 8000,
       });
-
-      refreshSubscriptionStatus();
-      loadContent(creator.id, stxAddress);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Subscription failed.";
-      setError(message);
+      const message = errorMessage(err, "Subscription failed.");
       toast({
         variant: "destructive",
         title: "Subscription failed",
@@ -170,7 +107,7 @@ const CreatorProfile = () => {
     } finally {
       setIsSubscribing(false);
     }
-  }, [creator, stxAddress, subscribeOnContract, toast, refreshSubscriptionStatus, loadContent]);
+  };
 
   const handlePrimaryAction = async () => {
     if (!creator) return;
@@ -179,11 +116,10 @@ const CreatorProfile = () => {
       try {
         await connectWallet();
       } catch (err) {
-        const message = err instanceof Error ? err.message : "Wallet connection failed.";
         toast({
           variant: "destructive",
           title: "Connection failed",
-          description: message,
+          description: errorMessage(err, "Wallet connection failed."),
         });
       }
       return;
@@ -206,7 +142,7 @@ const CreatorProfile = () => {
   }, [creator?.displayName]);
 
   const contentList = useMemo(() => {
-    if (!content.length) return null;
+    if (!content?.length) return null;
 
     return content.map((item) => (
       <Link
@@ -249,13 +185,13 @@ const CreatorProfile = () => {
     );
   }
 
-  if (error || !creator) {
+  if (!creator) {
     return (
       <Layout>
         <div className="mx-auto flex w-full max-w-4xl flex-col items-center gap-4 rounded-3xl border border-destructive/40 bg-destructive/10 px-8 py-20 text-center text-destructive">
-          <p>{error || "Creator not found."}</p>
-          <Button size="sm" variant="outline" onClick={loadCreator}>
-            Retry
+          <p>Creator not found.</p>
+          <Button size="sm" variant="outline" asChild>
+            <Link to="/explore">Back to Explore</Link>
           </Button>
         </div>
       </Layout>
@@ -286,11 +222,13 @@ const CreatorProfile = () => {
                 size="lg"
                 className="rounded-full px-8 text-xs tracking-[0.3em]"
                 onClick={handlePrimaryAction}
-                disabled={isSubscribing || isSubscribed}
+                disabled={isSubscribing || awaitingConfirmation || isSubscribed}
               >
                 {isAuthenticated ? (
                   isSubscribed ? (
                     "Subscribed"
+                  ) : awaitingConfirmation ? (
+                    "Verifying payment…"
                   ) : isSubscribing ? (
                     "Processing…"
                   ) : (
@@ -308,7 +246,12 @@ const CreatorProfile = () => {
                   Access until {formatDate(subscriptionStatus.expiresAt)}
                 </p>
               )}
-              {!isSubscribed && (
+              {!isSubscribed && awaitingConfirmation && (
+                <p className="text-[11px] text-muted-foreground uppercase tracking-[0.3em]">
+                  Waiting for on-chain confirmation…
+                </p>
+              )}
+              {!isSubscribed && !awaitingConfirmation && (
                 <p className="text-[11px] text-muted-foreground uppercase tracking-[0.3em]">
                   Or unlock individual pieces via pay-per-view.
                 </p>
@@ -374,7 +317,7 @@ const CreatorProfile = () => {
           <TabsContent value="content" className="mt-6">
             {contentLoading ? (
               <p className="py-8 text-center text-sm text-muted-foreground">Loading content…</p>
-            ) : content.length ? (
+            ) : content?.length ? (
               <div className="space-y-2">{contentList}</div>
             ) : (
               <p className="py-8 text-center text-sm text-muted-foreground">No premium drops yet.</p>
