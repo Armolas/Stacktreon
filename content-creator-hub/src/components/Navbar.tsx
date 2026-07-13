@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Wallet, Menu, X } from "lucide-react";
 import { useState } from "react";
 import { useWallet } from "@/contexts/WalletContext";
+import { toast } from "@/hooks/use-toast";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,9 +19,19 @@ const Navbar = () => {
 
   const links = [
     { to: "/explore", label: "Explore" },
-    { to: "/dashboard/creator", label: "Creators" },
+    { to: "/dashboard/creator", label: "Dashboard" },
     { to: "/dashboard/fan", label: "Feed" },
   ];
+
+  const handleConnect = () => {
+    connectWallet().catch(() => {
+      toast({
+        title: "Wallet connection failed",
+        description: "Install a Stacks wallet like Leather or Xverse, then try again.",
+        variant: "destructive",
+      });
+    });
+  };
 
   const formatAddress = (address: string) => {
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
@@ -60,7 +71,7 @@ const Navbar = () => {
               size="sm"
               variant="secondary"
               className="text-xs font-semibold tracking-wide"
-              onClick={connectWallet}
+              onClick={handleConnect}
               disabled={isConnecting}
             >
               <Wallet className="w-3 h-3" />

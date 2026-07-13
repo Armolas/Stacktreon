@@ -14,6 +14,7 @@ import {
   getCreatorByWallet,
   getCreatorSubscribers,
   getTransactionsByCreator,
+  NotFoundError,
 } from "@/lib/api";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
@@ -74,8 +75,11 @@ const CreatorDashboard = () => {
         setCreator(creatorProfile);
         await hydrateDashboard(creatorProfile.id, creatorProfile.walletAddress);
       } catch (error) {
-        console.error('Creator not found, redirecting to register page', error);
-        navigate('/dashboard/creator/register');
+        if (error instanceof NotFoundError) {
+          navigate('/dashboard/creator/register');
+        } else {
+          setError(error instanceof Error ? error.message : 'Failed to load your creator profile.');
+        }
       } finally {
         setIsLoading(false);
       }
@@ -120,7 +124,7 @@ const CreatorDashboard = () => {
     return (
       <Layout>
         <div className="mx-auto flex w-full max-w-4xl items-center justify-center rounded-3xl border border-border/70 bg-card/80 px-8 py-20 text-center text-muted-foreground">
-          Preparing your atelier…
+          Loading your dashboard…
         </div>
       </Layout>
     );
@@ -139,7 +143,19 @@ const CreatorDashboard = () => {
   }
 
   if (!creator) {
-    return null; // Will redirect in useEffect
+    if (error) {
+      return (
+        <Layout>
+          <div className="mx-auto flex w-full max-w-4xl flex-col items-center gap-4 rounded-3xl border border-border/70 bg-card/80 px-8 py-20 text-center">
+            <p className="text-sm text-destructive">{error}</p>
+            <p className="text-xs text-muted-foreground">
+              The server may be waking up. Please try again in a moment.
+            </p>
+          </div>
+        </Layout>
+      );
+    }
+    return null; // Redirecting to registration
   }
 
   return (

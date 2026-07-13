@@ -39,8 +39,7 @@ export function useSubscriptionContract() {
   const callContract = useCallback(
     async (
       functionName: string,
-      functionArgs: ClarityValue[],
-      postConditions: any[] = []
+      functionArgs: ClarityValue[]
     ): Promise<ContractCallResponse> => {
       return new Promise((resolve, reject) => {
         openContractCall({
@@ -49,7 +48,6 @@ export function useSubscriptionContract() {
           contractName: CONTRACT_NAME,
           functionName,
           functionArgs,
-          postConditions,
           onFinish: (data) => {
             resolve({ txId: data.txId });
           },
@@ -70,7 +68,7 @@ export function useSubscriptionContract() {
       functionName: string,
       functionArgs: ClarityValue[] = [],
       senderAddress?: string
-    ): Promise<any> => {
+    ): Promise<ClarityValue> => {
       try {
         const options = {
           contractAddress: CONTRACT_ADDRESS,
@@ -84,8 +82,7 @@ export function useSubscriptionContract() {
         const result = await fetchCallReadOnlyFunction(options);
         return result;
       } catch (error) {
-        console.error('Contract read failed:', error);
-        throw error;
+        throw error instanceof Error ? error : new Error('Contract read failed');
       }
     },
     []

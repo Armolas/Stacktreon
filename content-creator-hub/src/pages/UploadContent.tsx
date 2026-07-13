@@ -6,14 +6,7 @@ import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Upload, X } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { uploadContent, getCreatorByWallet } from "@/lib/api";
+import { uploadContent, getCreatorByWallet, NotFoundError } from "@/lib/api";
 import { useWallet } from "@/contexts/WalletContext";
 
 const UploadContent = () => {
@@ -23,7 +16,6 @@ const UploadContent = () => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
-  const [fileType, setFileType] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -57,15 +49,12 @@ const UploadContent = () => {
 
       navigate("/dashboard/creator");
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to upload content";
-
-      // If creator not found, redirect to register page
-      if (errorMessage.includes("Creator not found") || errorMessage.includes("register as a creator")) {
+      if (err instanceof NotFoundError) {
         navigate("/dashboard/creator/register");
         return;
       }
 
-      setError(errorMessage);
+      setError(err instanceof Error ? err.message : "Failed to upload content");
     } finally {
       setIsUploading(false);
     }
@@ -92,7 +81,7 @@ const UploadContent = () => {
         </div>
 
         {error && (
-          <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-800 text-sm">
+          <div className="mb-4 p-3 rounded-lg border border-destructive/40 bg-destructive/10 text-destructive text-sm">
             {error}
           </div>
         )}
@@ -119,20 +108,6 @@ const UploadContent = () => {
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
             />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>Content Type</Label>
-            <Select value={fileType} onValueChange={setFileType} required>
-              <SelectTrigger>
-                <SelectValue placeholder="Select type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="article">Article</SelectItem>
-                <SelectItem value="video">Video</SelectItem>
-                <SelectItem value="audio">Audio</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
 
           <div className="space-y-1.5">

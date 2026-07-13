@@ -1,5 +1,21 @@
 const API_URL = import.meta.env.VITE_API_URL || 'https://stacktreon.onrender.com';
 
+/** Thrown when the API definitively reports a missing resource (HTTP 404). */
+export class NotFoundError extends Error {}
+
+/**
+ * Safely extract an error message from a failed response. Falls back when the
+ * body is not JSON (e.g. HTML error pages from proxies or cold starts).
+ */
+const errorMessageFrom = async (response: Response, fallback: string): Promise<string> => {
+  try {
+    const error = await response.json();
+    return error.message || fallback;
+  } catch {
+    return fallback;
+  }
+};
+
 export interface CreatorResponse {
   id: string;
   walletAddress: string;
@@ -59,14 +75,7 @@ export const getAllCreators = async (): Promise<CreatorResponse[]> => {
   const response = await fetch(`${API_URL}/creators`);
 
   if (!response.ok) {
-    let errorMessage = 'Failed to fetch creators';
-    try {
-      const error = await response.json();
-      errorMessage = error.message || errorMessage;
-    } catch (err) {
-      // Swallow JSON parse errors and fall back to default error message
-    }
-    throw new Error(errorMessage);
+    throw new Error(await errorMessageFrom(response, 'Failed to fetch creators'));
   }
 
   return response.json();
@@ -77,10 +86,9 @@ export const getCreatorByWallet = async (walletAddress: string) => {
 
   if (!response.ok) {
     if (response.status === 404) {
-      throw new Error('Creator not found. Please register as a creator first.');
+      throw new NotFoundError('Creator not found. Please register as a creator first.');
     }
-    const error = await response.json();
-    throw new Error(error.message || 'Failed to fetch creator');
+    throw new Error(await errorMessageFrom(response, 'Failed to fetch creator'));
   }
 
   return response.json();
@@ -90,8 +98,10 @@ export const getCreatorByUsername = async (username: string): Promise<CreatorRes
   const response = await fetch(`${API_URL}/creators/username/${username}`);
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || 'Failed to fetch creator');
+    if (response.status === 404) {
+      throw new NotFoundError('Creator not found');
+    }
+    throw new Error(await errorMessageFrom(response, 'Failed to fetch creator'));
   }
 
   return response.json();
@@ -115,8 +125,7 @@ export const registerCreator = async (data: {
   });
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || 'Failed to register creator');
+    throw new Error(await errorMessageFrom(response, 'Failed to register creator'));
   }
 
   return response.json();
@@ -141,8 +150,7 @@ export const uploadContent = async (
   });
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || 'Failed to upload content');
+    throw new Error(await errorMessageFrom(response, 'Failed to upload content'));
   }
 
   return response.json();
@@ -156,8 +164,7 @@ export const getContentById = async (contentId: string, userWallet?: string) => 
   const response = await fetch(url);
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || 'Failed to fetch content');
+    throw new Error(await errorMessageFrom(response, 'Failed to fetch content'));
   }
 
   return response.json();
@@ -174,8 +181,7 @@ export const getContentByCreator = async (
   const response = await fetch(url);
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || 'Failed to fetch creator content');
+    throw new Error(await errorMessageFrom(response, 'Failed to fetch creator content'));
   }
 
   return response.json();
@@ -190,8 +196,7 @@ export const checkSubscriptionStatus = async (
   );
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || 'Failed to check subscription');
+    throw new Error(await errorMessageFrom(response, 'Failed to check subscription'));
   }
 
   return response.json();
@@ -225,8 +230,7 @@ export const createTransaction = async (
   });
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || 'Failed to create transaction');
+    throw new Error(await errorMessageFrom(response, 'Failed to create transaction'));
   }
 
   return response.json();
@@ -246,8 +250,7 @@ export const updateTransactionStatus = async (
   });
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || 'Failed to update transaction');
+    throw new Error(await errorMessageFrom(response, 'Failed to update transaction'));
   }
 
   return response.json();
@@ -259,8 +262,7 @@ export const getCreatorSubscribers = async (
   const response = await fetch(`${API_URL}/subscriptions/creator/${creatorId}`);
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || 'Failed to fetch subscribers');
+    throw new Error(await errorMessageFrom(response, 'Failed to fetch subscribers'));
   }
 
   return response.json();
@@ -272,8 +274,7 @@ export const getTransactionsByCreator = async (
   const response = await fetch(`${API_URL}/transactions/creator/${creatorWallet}`);
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || 'Failed to fetch transactions');
+    throw new Error(await errorMessageFrom(response, 'Failed to fetch transactions'));
   }
 
   return response.json();
@@ -285,8 +286,7 @@ export const getUserSubscriptions = async (
   const response = await fetch(`${API_URL}/subscriptions/user/${walletAddress}`);
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || 'Failed to fetch subscriptions');
+    throw new Error(await errorMessageFrom(response, 'Failed to fetch subscriptions'));
   }
 
   return response.json();
@@ -298,8 +298,7 @@ export const getTransactionsByWallet = async (
   const response = await fetch(`${API_URL}/transactions/wallet/${walletAddress}`);
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || 'Failed to fetch transactions');
+    throw new Error(await errorMessageFrom(response, 'Failed to fetch transactions'));
   }
 
   return response.json();

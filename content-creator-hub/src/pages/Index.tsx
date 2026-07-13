@@ -5,17 +5,17 @@ import { ArrowRight, Zap, Shield, Eye, Users, TrendingUp, Layers } from "lucide-
 
 const FEATURES = [
   { icon: Zap, title: "Instant Unlocks", desc: "x402 pay-per-view settles the moment someone taps “Unlock”." },
-  { icon: Users, title: "Optional Memberships", desc: "Monthly access tiers for superfans who want everything." },
+  { icon: Users, title: "Optional Memberships", desc: "Monthly access for fans who want everything you publish." },
   { icon: Shield, title: "Custody in Your Hands", desc: "No opaque platforms - just wallets, signatures, and trust." },
-  { icon: Eye, title: "Discreet Paywalls", desc: "HTTP-native flows that feel invisible yet secure." },
-  { icon: TrendingUp, title: "Clarity Insights", desc: "Revenue, cohorts, renewals - all distilled for action." },
-  { icon: Layers, title: "Stacks Native", desc: "Bitcoin security with the elegance of curated software." },
+  { icon: Eye, title: "HTTP-Native Paywalls", desc: "Locked content is just a link. Fans pay and unlock without leaving the page." },
+  { icon: TrendingUp, title: "Creator Insights", desc: "Revenue, subscribers, and renewals at a glance." },
+  { icon: Layers, title: "Stacks Native", desc: "Built on Stacks, secured by Bitcoin, settled in STX." },
 ];
 
-const STAT_CARDS = [
-  { label: "Creators", value: "3,200+", detail: "Publishing premium drops" },
-  { label: "Avg. renewal", value: "91%", detail: "Subscriptions / last 30d" },
-  { label: "Pay-per-view unlocks", value: "240k", detail: "Instant STX settlements" },
+const HIGHLIGHT_CARDS = [
+  { label: "Live on Stacks", value: "Testnet", detail: "Mainnet launch in progress" },
+  { label: "Pay-per-view", value: "x402", detail: "One-tap unlocks over HTTP" },
+  { label: "Creator custody", value: "100%", detail: "Earnings settle to your wallet" },
 ];
 
 const Index = () => {
@@ -23,7 +23,7 @@ const Index = () => {
     <Layout>
       <section className="mx-auto flex w-full max-w-6xl flex-col items-center gap-12 rounded-[32px] border border-border/60 bg-card/70 px-6 py-16 text-center shadow-2xl lg:px-16">
         <p className="text-[11px] uppercase tracking-[0.8em] text-muted-foreground">
-          Curated experiences on Bitcoin
+          Creator memberships on Bitcoin
         </p>
         <div className="max-w-3xl">
           <h1 className="text-4xl font-semibold leading-tight tracking-tight text-foreground sm:text-5xl lg:text-[3.5rem]">
@@ -35,7 +35,7 @@ const Index = () => {
           </p>
         </div>
         <div className="flex flex-col gap-4 text-xs uppercase tracking-[0.4em] text-muted-foreground sm:flex-row sm:gap-8">
-          {STAT_CARDS.map((card) => (
+          {HIGHLIGHT_CARDS.map((card) => (
             <div key={card.label} className="flex flex-col items-center gap-1">
               <span className="text-3xl font-semibold tracking-tight text-foreground">{card.value}</span>
               <span>{card.label}</span>
@@ -55,7 +55,7 @@ const Index = () => {
               variant="outline"
               className="rounded-full border-border/70 bg-transparent px-8 text-xs tracking-[0.3em]"
             >
-              Become a host
+              Become a creator
             </Button>
           </Link>
         </div>
@@ -66,11 +66,12 @@ const Index = () => {
           <div className="lg:w-1/3">
             <p className="text-[11px] uppercase tracking-[0.6em] text-muted-foreground">Why Stacktreon</p>
             <h2 className="mt-4 text-2xl font-semibold leading-tight">
-              Payments, memberships, and vault-grade custody.
+              Payments, memberships, and custody you control.
             </h2>
             <p className="mt-4 text-sm text-muted-foreground">
-              Every surface favors whitespace, restrained color, and intentional feedback. Dark mode mirrors light mode with
-              the same elegance, ensuring collectors feel confidence at every interaction.
+              Fans can unlock a single drop or subscribe for everything, and every payment settles instantly on-chain in
+              STX. Funds flow straight to your wallet - no intermediaries, no payout delays, and Bitcoin-grade security
+              behind every transaction.
             </p>
           </div>
           <div className="grid flex-1 gap-4 sm:grid-cols-2">

@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { connect, disconnect, isConnected, getLocalStorage, request } from '@stacks/connect';
+import { connect, disconnect, isConnected, getLocalStorage } from '@stacks/connect';
 
 interface Address {
   address: string;
@@ -49,34 +49,20 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   const connectWallet = async () => {
     if (isConnected()) {
-      console.log('Already authenticated');
       return;
     }
 
     setIsConnecting(true);
     try {
-      const response = await connect();
-      console.log('Connected:', response.addresses);
-
-      // Update state
+      await connect();
       setIsAuthenticated(true);
 
-      // Get full user data
       const data = getLocalStorage();
       if (data?.addresses) {
         setUserData(data as UserData);
       }
-
-      // Optionally request full account details
-      try {
-        const accounts = await request('stx_getAccounts');
-        console.log('Account details:', accounts);
-      } catch (err) {
-        console.log('Could not fetch full account details:', err);
-      }
     } catch (error) {
-      console.error('Failed to connect wallet:', error);
-      throw error;
+      throw error instanceof Error ? error : new Error('Failed to connect wallet');
     } finally {
       setIsConnecting(false);
     }
@@ -86,7 +72,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     disconnect();
     setIsAuthenticated(false);
     setUserData(null);
-    console.log('User disconnected');
   };
 
   const stxAddress = userData?.addresses?.stx?.[0]?.address || null;

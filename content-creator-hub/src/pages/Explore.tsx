@@ -125,10 +125,10 @@ const Explore = () => {
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-10">
         <header className="flex flex-col gap-4 rounded-3xl border border-border/70 bg-card/80 p-8 shadow-lg">
           <div className="flex flex-col gap-2">
-            <p className="text-[11px] uppercase tracking-[0.6em] text-muted-foreground">Curated Directory</p>
-            <h1 className="text-3xl font-semibold tracking-tight">Explore creators designing the future of patronage.</h1>
+            <p className="text-[11px] uppercase tracking-[0.6em] text-muted-foreground">Creator Directory</p>
+            <h1 className="text-3xl font-semibold tracking-tight">Explore creators earning directly from their fans.</h1>
             <p className="text-sm text-muted-foreground">
-              Filter by discipline or search across bios, BNS names, and descriptions. Each profile is vetted and on-chain.
+              Filter by discipline or search across names, bios, and BNS handles.
             </p>
           </div>
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
@@ -172,7 +172,7 @@ const Explore = () => {
         )}
 
         {isLoading ? (
-          <p className="py-24 text-center text-sm text-muted-foreground">Curating the list…</p>
+          <p className="py-24 text-center text-sm text-muted-foreground">Loading creators…</p>
         ) : (
           <>
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -193,11 +193,11 @@ const Explore = () => {
                       </div>
                     </div>
                     <span className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-                      {creator.categories?.[0] || "Curator"}
+                      {creator.categories?.[0] || "Creator"}
                     </span>
                   </div>
                   <p className="text-sm text-muted-foreground line-clamp-3">
-                    {creator.bio || "This creator curates experiences with intention and restraint."}
+                    {creator.bio || "This creator hasn't added a bio yet."}
                   </p>
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
                     <span>{creator.bns || "-"}</span>

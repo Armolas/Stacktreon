@@ -84,8 +84,8 @@ const CreatorProfile = () => {
       try {
         const creatorContent = await getContentByCreator(creatorId, wallet);
         setContent(creatorContent);
-      } catch (err) {
-        console.error("Failed to load content", err);
+      } catch {
+        setContent([]);
       } finally {
         setContentLoading(false);
       }
@@ -110,8 +110,8 @@ const CreatorProfile = () => {
     try {
       const status = await checkSubscriptionStatus(creator.id, stxAddress);
       setSubscriptionStatus(status);
-    } catch (err) {
-      console.error("Failed to check subscription", err);
+    } catch {
+      setSubscriptionStatus(null);
     }
   }, [creator?.id, stxAddress]);
 
@@ -243,7 +243,7 @@ const CreatorProfile = () => {
     return (
       <Layout>
         <div className="mx-auto flex w-full max-w-4xl items-center justify-center rounded-3xl border border-border/70 bg-card/80 px-8 py-20 text-center text-muted-foreground">
-          Loading curator profile…
+          Loading creator profile…
         </div>
       </Layout>
     );
@@ -317,7 +317,7 @@ const CreatorProfile = () => {
           </div>
           <p className="mt-6 text-sm text-muted-foreground">{creator.bio}</p>
           <div className="mt-4 flex flex-wrap gap-2">
-            {(creator.categories && creator.categories.length > 0 ? creator.categories : ["Curator"]).map((category) => (
+            {(creator.categories && creator.categories.length > 0 ? creator.categories : ["Creator"]).map((category) => (
               <Badge key={category} variant="outline" className="rounded-full border-border/60 px-4 py-1 text-xs uppercase tracking-[0.3em]">
                 {category}
               </Badge>
@@ -373,7 +373,7 @@ const CreatorProfile = () => {
 
           <TabsContent value="content" className="mt-6">
             {contentLoading ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">Preparing the catalog…</p>
+              <p className="py-8 text-center text-sm text-muted-foreground">Loading content…</p>
             ) : content.length ? (
               <div className="space-y-2">{contentList}</div>
             ) : (

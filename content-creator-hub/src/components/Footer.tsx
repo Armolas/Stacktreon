@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 
 const footerLinks = [
   { label: "Explore", to: "/explore" },
-  { label: "Creators", to: "/dashboard/creator" },
+  { label: "Dashboard", to: "/dashboard/creator" },
   { label: "Feed", to: "/dashboard/fan" },
 ];
 
@@ -21,7 +21,14 @@ const Footer = () => (
             {link.label}
           </Link>
         ))}
-        <a className="cursor-not-allowed opacity-60">Docs</a>
+        <a
+          href="https://github.com/Armolas/Stacktreon#readme"
+          target="_blank"
+          rel="noreferrer"
+          className="hover:text-foreground"
+        >
+          Docs
+        </a>
       </div>
     </div>
   </footer>

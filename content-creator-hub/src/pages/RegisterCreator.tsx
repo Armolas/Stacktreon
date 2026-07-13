@@ -140,13 +140,13 @@ const RegisterCreator = () => {
         </div>
 
         {error && (
-          <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-800 text-sm">
+          <div className="mb-4 p-3 rounded-lg border border-destructive/40 bg-destructive/10 text-destructive text-sm">
             {error}
           </div>
         )}
 
         {!isAuthenticated && (
-          <div className="mb-4 p-3 rounded-lg bg-yellow-50 border border-yellow-200 text-yellow-800 text-sm">
+          <div className="mb-4 p-3 rounded-lg border border-border bg-muted text-muted-foreground text-sm">
             Please connect your wallet to register as a creator
           </div>
         )}

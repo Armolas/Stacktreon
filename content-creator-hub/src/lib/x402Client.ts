@@ -5,7 +5,7 @@ import {
 } from '@stacks/transactions';
 import { decodePaymentResponse } from 'x402-stacks';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_URL = import.meta.env.VITE_API_URL || 'https://stacktreon.onrender.com';
 const NETWORK = (import.meta.env.VITE_NETWORK as 'mainnet' | 'testnet') || 'testnet';
 
 interface PaymentRequirement {
@@ -17,7 +17,7 @@ interface PaymentRequirement {
 export interface X402Response {
   paymentRequired: boolean;
   paymentDetails?: PaymentRequirement;
-  data?: any;
+  data?: unknown;
 }
 
 /**
@@ -28,87 +28,79 @@ export async function fetchWithX402(
   endpoint: string,
   paymentProof?: string
 ): Promise<X402Response> {
-  try {
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  if (paymentProof) {
+    headers['payment-signature'] = paymentProof;
+  }
+
+  const response = await fetch(`${API_URL}${endpoint}`, {
+    headers,
+  });
+
+  if (response.ok) {
+    const data = await response.json();
+    return {
+      paymentRequired: false,
+      data,
     };
+  }
 
-    if (paymentProof) {
-      headers['payment-signature'] = paymentProof;
-    }
-
-    const response = await fetch(`${API_URL}${endpoint}`, {
-      headers,
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      return {
-        paymentRequired: false,
-        data,
-      };
-    }
-
-    if (response.status === 402) {
-      const body = await response.text();
-      let paymentDetails;
-
-      try {
-        const json = JSON.parse(body);
-
-        // Handle x402 v2 format
-        if (json.x402Version === 2 && json.accepts && json.accepts.length > 0) {
-          const acceptOption = json.accepts[0]; // Use first payment option
-          paymentDetails = {
-            amount: parseInt(acceptOption.amount), // Convert string to number
-            recipient: acceptOption.payTo,
-            facilitator: json.facilitator,
-          };
-        } else {
-          // Handle x402 v1 format or other formats
-          paymentDetails = {
-            amount: json.microSTX || json.amount,
-            recipient: json.payTo || json.recipient,
-            facilitator: json.facilitatorUrl || json.facilitator,
-          };
-        }
-      } catch (e) {
-        console.log('Failed to parse JSON, checking headers');
-        // Check response headers for payment details
-        const wwwAuth = response.headers.get('www-authenticate');
-        if (wwwAuth) {
-          console.log('WWW-Authenticate header:', wwwAuth);
-          // Parse WWW-Authenticate header for payment details
-          const amountMatch = wwwAuth.match(/amount=(\d+)/);
-          const recipientMatch = wwwAuth.match(/recipient=([^\s,]+)/);
-
-          paymentDetails = {
-            amount: amountMatch ? parseInt(amountMatch[1]) : 0,
-            recipient: recipientMatch ? recipientMatch[1] : '',
-          };
-        }
-      }
-
-      console.log('Final payment details:', paymentDetails);
-
-      return {
-        paymentRequired: true,
-        paymentDetails,
-      };
-    }
-
-    // Other errors
-    const errorText = await response.text();
+  if (response.status === 402) {
+    const body = await response.text();
+    let paymentDetails;
 
     try {
-      const errorJson = JSON.parse(errorText);
-      throw new Error(`Payment error: ${errorJson.error || errorJson.message || errorText}`);
-    } catch (e) {
-      throw new Error(`Request failed: ${response.status} - ${errorText}`);
+      const json = JSON.parse(body);
+
+      // Handle x402 v2 format
+      if (json.x402Version === 2 && json.accepts && json.accepts.length > 0) {
+        const acceptOption = json.accepts[0]; // Use first payment option
+        paymentDetails = {
+          amount: parseInt(acceptOption.amount), // Convert string to number
+          recipient: acceptOption.payTo,
+          facilitator: json.facilitator,
+        };
+      } else {
+        // Handle x402 v1 format or other formats
+        paymentDetails = {
+          amount: json.microSTX || json.amount,
+          recipient: json.payTo || json.recipient,
+          facilitator: json.facilitatorUrl || json.facilitator,
+        };
+      }
+    } catch {
+      // Body was not JSON; fall back to payment details in headers
+      const wwwAuth = response.headers.get('www-authenticate');
+      if (wwwAuth) {
+        const amountMatch = wwwAuth.match(/amount=(\d+)/);
+        const recipientMatch = wwwAuth.match(/recipient=([^\s,]+)/);
+
+        paymentDetails = {
+          amount: amountMatch ? parseInt(amountMatch[1]) : 0,
+          recipient: recipientMatch ? recipientMatch[1] : '',
+        };
+      }
     }
-  } catch (error) {
-    throw error;
+
+    return {
+      paymentRequired: true,
+      paymentDetails,
+    };
   }
+
+  // Other errors
+  const errorText = await response.text();
+  let errorMessage = `Request failed: ${response.status} - ${errorText}`;
+  try {
+    const errorJson = JSON.parse(errorText);
+    errorMessage = `Payment error: ${errorJson.error || errorJson.message || errorText}`;
+  } catch {
+    // Not JSON; keep the generic message
+  }
+  throw new Error(errorMessage);
 }
 
 /**
@@ -234,7 +226,7 @@ async function fetchTransactionHex(txId: string, network: string, maxRetries = 2
 async function createPaymentSignature(
   txId: string,
   payerAddress: string,
-  acceptOption: any,
+  acceptOption: unknown,
   network: string
 ): Promise<string> {
   const transactionHex = await fetchTransactionHex(txId, network);
@@ -261,16 +253,16 @@ async function createPaymentSignature(
 /**
  * Complete payment flow: fetch content, handle 402, make payment, retry
  */
-export async function fetchPaidContent(
+export async function fetchPaidContent<T = unknown>(
   contentId: string,
   userAddress: string,
   onPaymentStarting?: (amount: number) => void,
   onPaymentSubmitted?: (txId: string) => void
-): Promise<any> {
+): Promise<T> {
   const response = await fetchWithX402(`/content/x402/${contentId}`);
 
   if (!response.paymentRequired) {
-    return response.data;
+    return response.data as T;
   }
 
   if (!response.paymentDetails) {
@@ -299,5 +291,5 @@ export async function fetchPaidContent(
   if (retryResponse.paymentRequired) {
     throw new Error('Payment verification pending. The transaction may still be processing. Please wait a few moments and refresh the page.');
   }
-  return retryResponse.data;
+  return retryResponse.data as T;
 }

@@ -15,6 +15,7 @@ import {
 } from "@/lib/api";
 import { useEffect, useMemo, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
+import { toast } from "@/hooks/use-toast";
 
 const formatDate = (dateString?: string) => {
   if (!dateString) return "";
@@ -126,7 +127,7 @@ const FanDashboard = () => {
     return (
       <Layout>
         <div className="mx-auto flex w-full max-w-4xl items-center justify-center rounded-3xl border border-border/70 bg-card/80 px-8 py-20 text-center text-muted-foreground">
-          Loading your collector console…
+          Loading your feed…
         </div>
       </Layout>
     );
@@ -139,7 +140,18 @@ const FanDashboard = () => {
           <p className="text-sm text-muted-foreground">
             Connect your wallet to see memberships and content.
           </p>
-          <Button size="sm" onClick={connectWallet}>
+          <Button
+            size="sm"
+            onClick={() => {
+              connectWallet().catch(() => {
+                toast({
+                  title: "Wallet connection failed",
+                  description: "Install a Stacks wallet like Leather or Xverse, then try again.",
+                  variant: "destructive",
+                });
+              });
+            }}
+          >
             Connect Wallet
           </Button>
         </div>
@@ -184,7 +196,7 @@ const FanDashboard = () => {
 
           <TabsContent value="feed" className="mt-6">
             {feedLoading ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">Curating your private feed…</p>
+              <p className="py-8 text-center text-sm text-muted-foreground">Loading your feed…</p>
             ) : feed.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">
                 {subscriptions.length === 0 ? "Subscribe to creators to begin receiving releases." : "No new posts yet."}
@@ -245,15 +257,12 @@ const FanDashboard = () => {
                         @{sub.creator.username} · {formatStxValue(sub.creator.subscriptionFee)} STX/mo
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        Renews {sub.expiresAt ? formatDate(sub.expiresAt) : "soon"}
+                        Expires {sub.expiresAt ? formatDate(sub.expiresAt) : "soon"}
                       </p>
                     </div>
                     <div className="flex gap-2 shrink-0">
                       <Button size="sm" variant="outline" className="rounded-full px-4 text-xs uppercase tracking-[0.3em]" asChild>
                         <Link to={`/creator/${sub.creator.username}`}>Profile</Link>
-                      </Button>
-                      <Button size="sm" variant="ghost" className="rounded-full px-4 text-xs text-destructive uppercase tracking-[0.3em]" disabled>
-                        Cancel
                       </Button>
                     </div>
                   </div>

@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Lock, Zap, ArrowLeft, Calendar } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { useWallet } from "@/contexts/WalletContext";
-import { getContentById, checkSubscriptionStatus } from "@/lib/api";
+import { getContentById } from "@/lib/api";
 import { fetchPaidContent } from "@/lib/x402Client";
 import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -76,7 +76,7 @@ const ContentView = () => {
     setError(null);
 
     try {
-      const paidContent = await fetchPaidContent(
+      const paidContent = await fetchPaidContent<{ data: Content }>(
         id,
         stxAddress,
         (amount) => {
@@ -185,7 +185,7 @@ const ContentView = () => {
     return (
       <Layout>
         <div className="container mx-auto px-4 py-12 max-w-2xl">
-          <p className="text-center text-red-600">{error || 'Content not found'}</p>
+          <p className="text-center text-destructive">{error || 'Content not found'}</p>
         </div>
       </Layout>
     );
@@ -228,7 +228,7 @@ const ContentView = () => {
               <Lock className="w-5 h-5 text-muted-foreground mx-auto mb-3" />
               <h3 className="font-medium text-sm mb-1">Premium Content</h3>
               <p className="text-xs text-muted-foreground mb-5 max-w-sm mx-auto">
-                This content is locked. Choose how to access it.
+                Unlock this piece with a one-time payment, or subscribe to {content.creator.displayName} for full access.
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
                 <Button
@@ -239,8 +239,10 @@ const ContentView = () => {
                   <Zap className="w-3 h-3" />
                   {isPaying ? 'Processing...' : `Pay ${content.price} STX`}
                 </Button>
-                <Button size="sm" variant="outline" disabled>
-                  <Calendar className="w-3 h-3" /> Subscribe {content.creator.subscriptionFee} STX/mo
+                <Button size="sm" variant="outline" asChild>
+                  <Link to={`/creator/${content.creator.username}`}>
+                    <Calendar className="w-3 h-3" /> Subscribe {content.creator.subscriptionFee} STX/mo
+                  </Link>
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground mt-4">
