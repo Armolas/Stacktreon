@@ -43,7 +43,7 @@ export class StorageService {
   async getSignedUrl(fileName: string): Promise<string> {
     const { data, error } = await this.supabase.storage
       .from(this.bucket)
-      .createSignedUrl(fileName, 60 * 60); // 10 minutes
+      .createSignedUrl(fileName, 60 * 60); // 1 hour
 
     if (error) {
       throw new Error(error.message);

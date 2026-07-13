@@ -53,7 +53,6 @@ export class X402Guard implements CanActivate {
 
     return new Promise((resolve, reject) => {
       middleware(request as any, response as any, (err: any) => {
-        console.log(request)
         if (err) {
           reject(
             new HttpException(
